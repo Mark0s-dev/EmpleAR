@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Publicidad / Contacto — EmpleAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <!-- ===================== HEADER / NAVBAR ===================== -->
+  <header class="site-header">
+    <nav class="navbar" aria-label="Navegación principal">
+      <a href="index.html" class="logo">EmpleAR</a>
+
+      <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navMenu" aria-label="Abrir menú">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html#buscar">Buscar empleo</a></li>
+        <li><a href="publicar.html">Publicar empleo</a></li>
+        <li><a href="contacto.html">Publicidad / Contacto</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <p class="back-link"><a href="index.html">← Volver a EmpleAR</a></p>
+
+    <!-- ===================== PUBLICIDAD / CONTACTO ===================== -->
+    <section class="contact-section" aria-labelledby="contacto-titulo">
+      <h2 id="contacto-titulo">Publicidad / Contacto</h2>
+      <p>¿Querés publicitar tu marca, sponsorear una sección o proponer una colaboración? Escribinos.</p>
+
+      <form class="contact-form" id="contactForm">
+        <div class="form-group">
+          <label for="contactNombre">Nombre</label>
+          <input type="text" id="contactNombre" name="nombre" required>
+        </div>
+
+        <div class="form-group">
+          <label for="contactEmail">Email</label>
+          <input type="email" id="contactEmail" name="email" required>
+        </div>
+
+        <div class="form-group">
+          <label for="motivo">Motivo</label>
+          <select id="motivo" name="motivo" required>
+            <option value="">Seleccionar...</option>
+            <option value="publicidad">Publicidad</option>
+            <option value="banners">Banners</option>
+            <option value="destacadas">Ofertas destacadas</option>
+            <option value="promociones">Promociones</option>
+            <option value="colaboracion">Colaboraciones</option>
+            <option value="precios">Precios</option>
+            <option value="otro">Otra consulta comercial</option>
+          </select>
+        </div>
+
+        <div class="form-group form-group-full">
+          <label for="mensaje">Mensaje</label>
+          <textarea id="mensaje" name="mensaje" rows="4" required></textarea>
+        </div>
+
+        <div class="form-group form-group-full">
+          <button type="submit" class="btn btn-primary">Enviar consulta</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <p>&copy; 2026 EmpleAR — Contacto: <a href="mailto:marcos20as04@gmail.com">marcos20as04@gmail.com</a></p>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/customSelect.js"></script>
+  <script src="js/filters.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
