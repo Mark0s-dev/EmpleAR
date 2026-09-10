@@ -1,0 +1,53 @@
+/* ===========================================================
+   VARIABLES CSS — sistema de diseño de EmpleAR
+   Paleta clara estilo Apple: blanco predominante, texto casi
+   negro, gris para todo lo secundario, azul como único acento.
+   =========================================================== */
+
+:root {
+  /* --- Color: fondo --- */
+  --bg-page: #FFFFFF;
+  --bg-alt: #F5F5F7;    /* gris muy claro, el "gris Apple" clásico */
+
+  /* --- Color: acento (único, minimalista) --- */
+  --accent: #0071E3;        /* azul Apple */
+  --accent-soft: rgba(0, 113, 227, 0.18);
+
+  /* --- Color: texto --- */
+  --text: #1D1D1F;          /* casi negro, no negro puro */
+  --text-muted: #6E6E73;    /* gris medio para texto secundario */
+  --text-faint: #A1A1A6;    /* gris claro para detalles menores */
+
+  /* --- Color: vidrio (glass) sobre fondo claro --- */
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-bg-strong: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-shadow: rgba(31, 38, 135, 0.14);
+  --glass-highlight: rgba(255, 255, 255, 0.75);
+  --glass-blur: 26px;
+  --glass-saturate: 180%;
+
+  /* Borde gris fino para elementos planos (inputs, tags, botón secundario) —
+     distinto del --glass-border, que es claro para simular el canto del vidrio. */
+  --hairline: rgba(0, 0, 0, 0.12);
+
+  /* --- Tipografía --- */
+  --font-display: "Outfit", sans-serif;
+  --font-body: "Inter", sans-serif;
+
+  /* --- Espaciado (escala consistente) --- */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2.5rem;
+  --space-xl: 4rem;
+
+  /* --- Bordes y radios --- */
+  --radius-sm: 12px;
+  --radius-md: 22px;
+  --radius-lg: 32px;
+
+  /* --- Transiciones --- */
+  --transition-fast: 0.18s ease;
+  --transition-base: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
