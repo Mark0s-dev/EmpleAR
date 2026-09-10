@@ -1,75 +1,51 @@
+# EmpleAR
 
+Plataforma web para buscar y publicar ofertas de empleo en toda Argentina, centralizando ofertas de distintas fuentes (Computrabajo, Bumeran, ZonaJobs, portales provinciales, etc.) en un solo lugar.
 
-**EmpleAR**
+Proyecto de aprendizaje: se construye por módulos, documentando cada paso.
 
-Es una plataforma web en desarrollo orientada a facilitar la búsqueda y publicación de ofertas laborales en Argentina.
+## Estado actual
 
-El proyecto busca centralizar oportunidades de empleo y permitir que los usuarios encuentren ofertas de acuerdo con su ubicación, categoría y puesto de interés.
+- ✅ **Módulo 1 — Frontend visual**: estructura HTML semántica, estilo "Liquid Glass" (blanco predominante + vidrio esmerilado, inspirado en apple.com), datos mock, buscador con filtros funcionales sobre los datos de prueba, dropdown personalizado animado, formularios de publicar/contacto (simulados, sin backend).
+- ✅ **Módulo 2 — Organización del frontend**: separación en páginas (`index.html`, `publicar.html`, `contacto.html`) y en componentes JS (`data.js`, `customSelect.js`, `filters.js`, `ui.js`).
+- 🔜 **Módulo 3 — Python**: en curso (ejercicios en `python-intro/`, todavía no integrados al proyecto).
+- ⬜ Módulo 4 en adelante: Flask, base de datos, scrapers, usuarios, notificaciones, producción.
 
-## Características
+## Estructura del proyecto
 
-Actualmente el proyecto se encuentra en una primera etapa de desarrollo, enfocada en la estructura y el diseño de la plataforma.
+```
+emplear/
+├── frontend/
+│   ├── index.html          → Home: hero, buscador, resultados, categorías, ubicaciones
+│   ├── publicar.html        → Formulario para publicar una oferta
+│   ├── contacto.html        → Formulario de publicidad / contacto
+│   ├── css/
+│   │   ├── variables.css    → Paleta de colores, tipografía, espaciado (design tokens)
+│   │   ├── base.css         → Reset, fondo, accesibilidad básica
+│   │   └── components.css   → Navbar, cards, formularios, dropdown, animaciones
+│   └── js/
+│       ├── data.js          → Datos mock (MOCK_JOBS, CATEGORIES, LOCATIONS, SOURCES)
+│       ├── customSelect.js  → Componente de dropdown reutilizable (sin dependencias)
+│       ├── filters.js       → Búsqueda/filtrado sobre los datos mock + envío de formularios
+│       └── ui.js            → Renderizado de tarjetas, navbar con scroll, menú mobile
+├── python-intro/            → Ejercicios sueltos de Python (Módulo 3, aún no integrados)
+└── README.md
+```
 
-Entre las funcionalidades previstas se encuentran:
+## Cómo correrlo
 
-* Búsqueda de ofertas laborales.
-* Filtros por provincia y ciudad.
-* Filtros por categoría y puesto.
-* Publicación de ofertas por parte de empresas y empleadores.
-* Recopilación de ofertas desde diferentes fuentes.
-* Notificaciones sobre nuevas oportunidades.
-* Publicaciones destacadas y espacios publicitarios.
-* Sistema de usuarios.
+1. Abrir la carpeta `frontend/` en VS Code.
+2. Clic derecho sobre `index.html` → **Open with Live Server**.
 
-## Tecnologías
+No requiere instalar nada (todavía): es HTML/CSS/JS plano, sin backend ni build step.
 
-### Frontend
+## Stack
 
-* HTML5
-* CSS3
-* JavaScript
+Por ahora: HTML5, CSS3, JavaScript vanilla (sin frameworks ni librerías).
+Más adelante: Python + Flask, SQLAlchemy, SQLite → PostgreSQL, APScheduler, Requests/BeautifulSoup.
 
-### Backend y servicios previstos
+## Notas
 
-* Python
-* Flask
-* SQLAlchemy
-* SQLite / PostgreSQL
-* APIs
-* Sistema de notificaciones por email
-
-## Estado del proyecto
-
-**En desarrollo**
-
-* [x] Estructura inicial
-* [x] Diseño de la interfaz
-* [ ] Funcionalidades JavaScript
-* [ ] Backend
-* [ ] Base de datos
-* [ ] Sistema de búsqueda
-* [ ] Publicación de empleos
-* [ ] Integración con fuentes externas
-* [ ] Notificaciones por email
-* [ ] Sistema de usuarios
-* [ ] Publicidad
-* [ ] Deploy
-
-## Objetivo
-
-El objetivo de EmpleAR es desarrollar una plataforma de búsqueda laboral funcional y escalable, utilizando el proyecto como espacio para aplicar y profundizar conocimientos de desarrollo web, bases de datos, APIs, automatización y control de versiones con Git.
-
-## Desarrollo
-
-El proyecto se desarrolla de forma progresiva, incorporando nuevas funcionalidades y tecnologías por etapas.
-
-La estructura está pensada para poder ampliar el sistema sin tener que reconstruir el proyecto desde cero a medida que aumente su complejidad.
-
-## Contacto:
-
-**[marcos20as04@gmail.com](mailto:marcos20as04@gmail.com)**
-
-## Licencia
-
-Proyecto desarrollado con fines educativos y de desarrollo.
-
+- Los datos de empleos son **ficticios** (`js/data.js`), solo para maquetar la interfaz.
+- Los formularios de "Publicar empleo" y "Publicidad / Contacto" simulan el envío (`alert()`) porque todavía no hay backend — se conectan de verdad en el Módulo 8.
+- El email de contacto de EmpleAR es `marcos20as04@gmail.com`.
