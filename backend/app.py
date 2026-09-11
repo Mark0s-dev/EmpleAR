@@ -1,7 +1,8 @@
-from datetime import date
+from datetime import date, timedelta
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from sqlalchemy import func, or_
 
 from data import CATEGORIES, LOCATIONS, SOURCES
 from models import Job, db
@@ -28,60 +29,52 @@ def home():
     return "EmpleAR backend funcionando 🚀"
 
 
-def _dias_desde(fecha_iso, referencia):
-    return (referencia - date.fromisoformat(fecha_iso)).days
-
-
-def _fecha_mas_reciente(jobs):
-    """La fecha más nueva entre los jobs de la base: la usamos como
-    'hoy' del demo, igual que hacíamos en filters.js con getMockToday()."""
-    return max(date.fromisoformat(j["publishedAt"]) for j in jobs)
+def _fecha_mas_reciente():
+    """La fecha más nueva guardada en la tabla jobs (consultada con
+    SQL, no calculada en Python): la usamos como 'hoy' del demo."""
+    ultima = db.session.query(func.max(Job.published_at)).scalar()
+    return date.fromisoformat(ultima) if ultima else date.today()
 
 
 def filtrar_jobs(criterios):
-    # Job.query.all() trae TODAS las filas de la tabla "jobs" desde
-    # SQLite. El filtrado, por ahora, lo seguimos haciendo acá en
-    # Python (igual que con MOCK_JOBS) para no mezclar dos temas
-    # nuevos a la vez — filtrar con SQL directamente (más eficiente
-    # con muchos datos) lo vemos en el Módulo 7.
-    jobs = [job.to_dict() for job in Job.query.all()]
-    if not jobs:
-        return []
+    """Arma un SELECT ... WHERE ... agregando condiciones solo para
+    los filtros que el usuario realmente eligió. SQLite es quien
+    filtra — Python ya no recorre nada a mano."""
+    query = Job.query
 
-    keyword = criterios.get("keyword", "").strip().lower()
-    referencia = _fecha_mas_reciente(jobs)
-    resultado = []
+    keyword = criterios.get("keyword", "").strip()
+    if keyword:
+        patron = f"%{keyword}%"
+        # or_(): que matchee CUALQUIERA de las tres columnas.
+        # ilike: como LIKE de SQL, pero sin importar mayúsculas/minúsculas.
+        query = query.filter(or_(
+            Job.title.ilike(patron),
+            Job.company.ilike(patron),
+            Job.description.ilike(patron),
+        ))
 
-    for job in jobs:
-        if keyword and keyword not in job["title"].lower() \
-                and keyword not in job["company"].lower() \
-                and keyword not in job["description"].lower():
-            continue
-        if criterios.get("provincia") and job["province"] != criterios["provincia"]:
-            continue
-        if criterios.get("ciudad") and job["city"] != criterios["ciudad"]:
-            continue
-        if criterios.get("categoria") and job["category"] != criterios["categoria"]:
-            continue
-        if criterios.get("modalidad") and job["modality"] != criterios["modalidad"]:
-            continue
-        if criterios.get("contrato") and job["contract"] != criterios["contrato"]:
-            continue
-        if criterios.get("horario") and job["schedule"] != criterios["horario"]:
-            continue
-        if criterios.get("fuente") and job["source"] != criterios["fuente"]:
-            continue
+    campo_por_criterio = {
+        "provincia": Job.province,
+        "ciudad": Job.city,
+        "categoria": Job.category,
+        "modalidad": Job.modality,
+        "contrato": Job.contract,
+        "horario": Job.schedule,
+        "fuente": Job.source,
+    }
+    for criterio, columna in campo_por_criterio.items():
+        valor = criterios.get(criterio)
+        if valor:
+            query = query.filter(columna == valor)
 
-        rango = criterios.get("fecha")
-        if rango:
-            dias = _dias_desde(job["publishedAt"], referencia)
-            limite = {"24h": 1, "7d": 7, "30d": 30}.get(rango)
-            if limite is not None and dias > limite:
-                continue
+    rango = criterios.get("fecha")
+    limite = {"24h": 1, "7d": 7, "30d": 30}.get(rango)
+    if limite is not None:
+        fecha_minima = _fecha_mas_reciente() - timedelta(days=limite)
+        query = query.filter(Job.published_at >= fecha_minima.isoformat())
 
-        resultado.append(job)
-
-    return resultado
+    # Las más nuevas primero — antes esto no estaba garantizado.
+    return query.order_by(Job.published_at.desc()).all()
 
 
 # ===================== EMPLEOS =====================
@@ -100,7 +93,7 @@ def get_jobs():
         "fuente": request.args.get("fuente", ""),
         "fecha": request.args.get("fecha", ""),
     }
-    return jsonify(filtrar_jobs(criterios))
+    return jsonify([job.to_dict() for job in filtrar_jobs(criterios)])
 
 
 @app.route("/api/jobs/<int:job_id>")

@@ -1,5 +1,7 @@
 # La base de datos es DATOS, no código: cada uno tiene la suya local,
 # generada con seed.py. No se sube al repositorio.
+# Flask la guarda en instance/ por convención (no al lado de app.py).
+instance/
 *.db
 __pycache__/
 *.pyc
