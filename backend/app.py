@@ -1,4 +1,6 @@
 from datetime import date, timedelta
+from functools import wraps
+import os
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -23,6 +25,25 @@ CORS(app)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///emplear.db"
 db.init_app(app)
 
+# Token de administrador MUY simple, solo para no dejar los endpoints
+# de moderación abiertos a cualquiera mientras no existe un sistema
+# de usuarios real (eso es el Módulo 13, con login y roles de verdad).
+# Se lee de una variable de entorno; si no está configurada, usa un
+# valor de desarrollo — NUNCA usar ese valor por defecto en producción.
+ADMIN_TOKEN = os.environ.get("EMPLEAR_ADMIN_TOKEN", "dev-admin-1234")
+
+
+def require_admin(vista):
+    """Decorador: envuelve una ruta y exige el header
+    'X-Admin-Token' con el valor correcto antes de ejecutarla."""
+    @wraps(vista)
+    def envoltorio(*args, **kwargs):
+        token = request.headers.get("X-Admin-Token")
+        if token != ADMIN_TOKEN:
+            return jsonify({"error": "No autorizado"}), 401
+        return vista(*args, **kwargs)
+    return envoltorio
+
 
 @app.route("/")
 def home():
@@ -40,7 +61,11 @@ def filtrar_jobs(criterios):
     """Arma un SELECT ... WHERE ... agregando condiciones solo para
     los filtros que el usuario realmente eligió. SQLite es quien
     filtra — Python ya no recorre nada a mano."""
-    query = Job.query
+    # Solo se muestran ofertas aprobadas: las "pending" (recién
+    # publicadas, sin revisar) y "rejected" no aparecen en la
+    # búsqueda pública. El panel de moderación (Módulo 9) sí las
+    # va a poder ver todas.
+    query = Job.query.filter(Job.status == "approved")
 
     keyword = criterios.get("keyword", "").strip()
     if keyword:
@@ -104,32 +129,68 @@ def get_job(job_id):
     return jsonify(job.to_dict())
 
 
+MODALIDADES_VALIDAS = {"presencial", "remoto", "hibrido"}
+CONTRATOS_VALIDOS = {"tiempo-completo", "medio-tiempo", "temporal", "freelance"}
+HORARIOS_VALIDOS = {"manana", "tarde", "noche", "rotativo"}
+
+
+def validar_job(datos):
+    """Devuelve un dict {campo: 'motivo del error'}. Vacío = todo bien.
+    No permite datos claramente inválidos (ni vacíos, ni fuera de las
+    opciones que el propio formulario ofrece, ni textos irrisoriamente
+    cortos)."""
+    errores = {}
+
+    def requerido(campo, minimo=1):
+        valor = (datos.get(campo) or "").strip()
+        if len(valor) < minimo:
+            errores[campo] = f"Debe tener al menos {minimo} caracteres."
+
+    requerido("title", minimo=3)
+    requerido("company", minimo=2)
+    requerido("description", minimo=20)
+
+    provincia = datos.get("province")
+    if provincia not in LOCATIONS:
+        errores["province"] = "Provincia inválida."
+    elif datos.get("city") not in LOCATIONS[provincia]:
+        errores["city"] = "Esa ciudad no pertenece a la provincia elegida."
+
+    if datos.get("category") not in CATEGORIES:
+        errores["category"] = "Categoría inválida."
+    if datos.get("modality") not in MODALIDADES_VALIDAS:
+        errores["modality"] = "Modalidad inválida."
+    if datos.get("contract") not in CONTRATOS_VALIDOS:
+        errores["contract"] = "Tipo de contrato inválido."
+    if datos.get("horario") not in HORARIOS_VALIDOS:
+        errores["horario"] = "Horario inválido."
+
+    return errores
+
+
 @app.route("/api/jobs", methods=["POST"])
 def create_job():
     datos = request.get_json(silent=True) or {}
 
-    requeridos = ["title", "company", "province", "city", "category", "modality", "contract"]
-    faltantes = [campo for campo in requeridos if not datos.get(campo)]
-    if faltantes:
-        return jsonify({"error": "Faltan campos obligatorios", "campos": faltantes}), 400
+    errores = validar_job(datos)
+    if errores:
+        return jsonify({"error": "Revisá los datos del formulario", "detalles": errores}), 400
 
-    # Ahora sí se guarda de verdad en SQLite.
-    # TODO (Módulo 9): agregar estado de moderación (pending/approved/...)
-    # antes de que estas ofertas aparezcan mezcladas con las reales.
     nuevo_job = Job(
-        title=datos["title"],
-        company=datos["company"],
+        title=datos["title"].strip(),
+        company=datos["company"].strip(),
         province=datos["province"],
         city=datos["city"],
         category=datos["category"],
         modality=datos["modality"],
         contract=datos["contract"],
-        schedule=datos.get("horario", "manana"),
-        description=datos.get("description", ""),
+        schedule=datos["horario"],
+        description=datos["description"].strip(),
         source="EmpleAR",
         source_url="#",
         published_at=date.today().isoformat(),
         featured=False,
+        status="pending",
     )
     db.session.add(nuevo_job)
     db.session.commit()
@@ -179,6 +240,42 @@ def create_contact():
 
     # Todavía no se envía email de verdad ni se guarda (llega en el Módulo 15)
     return jsonify({"mensaje": "Consulta recibida. Te vamos a responder pronto."}), 201
+
+
+# ===================== MODERACIÓN (admin) =====================
+
+ESTADOS_VALIDOS = {"pending", "approved", "rejected", "expired"}
+
+
+@app.route("/api/admin/jobs")
+@require_admin
+def admin_list_jobs():
+    """A diferencia de /api/jobs (público), esta ve TODOS los
+    estados. ?status=pending para filtrar uno solo (por defecto)."""
+    status = request.args.get("status", "pending")
+    query = Job.query
+    if status in ESTADOS_VALIDOS:
+        query = query.filter(Job.status == status)
+
+    jobs = query.order_by(Job.published_at.desc()).all()
+    return jsonify([job.to_dict() for job in jobs])
+
+
+@app.route("/api/admin/jobs/<int:job_id>", methods=["PATCH"])
+@require_admin
+def admin_update_job_status(job_id):
+    job = db.session.get(Job, job_id)
+    if job is None:
+        return jsonify({"error": "Empleo no encontrado"}), 404
+
+    datos = request.get_json(silent=True) or {}
+    nuevo_status = datos.get("status")
+    if nuevo_status not in ESTADOS_VALIDOS:
+        return jsonify({"error": "Estado inválido", "validos": sorted(ESTADOS_VALIDOS)}), 400
+
+    job.status = nuevo_status
+    db.session.commit()
+    return jsonify(job.to_dict())
 
 
 if __name__ == "__main__":

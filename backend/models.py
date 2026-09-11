@@ -32,6 +32,9 @@ class Job(db.Model):
     published_at = db.Column(db.String(10), nullable=False)  # "YYYY-MM-DD"
     featured = db.Column(db.Boolean, default=False)
 
+    # pending | approved | rejected | expired (moderación real en el Módulo 9)
+    status = db.Column(db.String(20), default="pending", nullable=False)
+
     def to_dict(self):
         """Convierte la fila de la base de datos al mismo formato
         de diccionario que ya usaba el frontend (JS espera 'sourceUrl'
@@ -51,4 +54,5 @@ class Job(db.Model):
             "sourceUrl": self.source_url,
             "publishedAt": self.published_at,
             "featured": self.featured,
+            "status": self.status,
         }

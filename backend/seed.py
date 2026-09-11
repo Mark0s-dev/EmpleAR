@@ -31,6 +31,7 @@ with app.app_context():
                 source_url=datos["sourceUrl"],
                 published_at=datos["publishedAt"],
                 featured=datos["featured"],
+                status="approved",  # los mock ya son ofertas "en vivo"
             )
             db.session.add(job)
 

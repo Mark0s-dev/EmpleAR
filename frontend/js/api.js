@@ -15,14 +15,19 @@ const API_BASE = "http://127.0.0.1:5000";
  */
 async function apiFetch(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    // Merge real de headers: si options trae sus propios headers
+    // (como X-Admin-Token), se suman al Content-Type por defecto
+    // en vez de reemplazarlo (un ...options simple lo pisaría entero).
+    headers: { "Content-Type": "application/json", ...options.headers },
   });
 
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    throw new Error(data?.error || `Error ${response.status}`);
+    const error = new Error(data?.error || `Error ${response.status}`);
+    error.detalles = data?.detalles;
+    throw error;
   }
 
   return data;
@@ -68,4 +73,24 @@ async function apiGetSources() {
 
 async function apiCreateContact(payload) {
   return apiFetch("/api/contact", { method: "POST", body: JSON.stringify(payload) });
+}
+
+/* ===================== ADMIN / MODERACIÓN ===================== */
+/* Estas 2 funciones mandan el header X-Admin-Token. Todavía no hay
+   login real (eso es el Módulo 13) — el token se pide con un simple
+   prompt() en moderar.html y se guarda en memoria mientras dura la
+   pestaña, nada más. */
+
+async function apiGetAdminJobs(token, status = "pending") {
+  return apiFetch(`/api/admin/jobs${buildQuery({ status })}`, {
+    headers: { "X-Admin-Token": token },
+  });
+}
+
+async function apiModerateJob(token, jobId, status) {
+  return apiFetch(`/api/admin/jobs/${jobId}`, {
+    method: "PATCH",
+    headers: { "X-Admin-Token": token },
+    body: JSON.stringify({ status }),
+  });
 }

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Moderación — EmpleAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="navbar" aria-label="Navegación principal">
+      <a href="index.html" class="logo">EmpleAR</a>
+      <ul class="nav-menu" id="navMenu" style="display:flex;position:static;">
+        <li><a href="index.html#buscar">Buscar empleo</a></li>
+        <li><a href="publicar.html">Publicar empleo</a></li>
+        <li><a href="contacto.html">Publicidad / Contacto</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <p class="back-link"><a href="index.html">← Volver a EmpleAR</a></p>
+
+    <section class="search-section" aria-labelledby="mod-titulo">
+      <h2 id="mod-titulo">Moderación de ofertas</h2>
+      <p>Panel interno — no está pensado para usuarios finales. Requiere el token de administrador (por ahora, el mismo que configuraste en <code>EMPLEAR_ADMIN_TOKEN</code>, o <code>dev-admin-1234</code> en desarrollo).</p>
+
+      <div class="search-bar">
+        <label for="statusFilter" class="visually-hidden">Estado</label>
+        <select id="statusFilter">
+          <option value="pending">Pendientes</option>
+          <option value="approved">Aprobadas</option>
+          <option value="rejected">Rechazadas</option>
+        </select>
+        <button type="button" class="btn btn-primary" id="loadBtn">Cargar</button>
+      </div>
+    </section>
+
+    <section class="results-section" aria-labelledby="mod-lista-titulo">
+      <h2 id="mod-lista-titulo">Ofertas</h2>
+      <div id="modStatus" class="results-status" role="status" aria-live="polite"></div>
+      <div class="job-list" id="modList"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 EmpleAR — Contacto: <a href="mailto:marcos20as04@gmail.com">marcos20as04@gmail.com</a></p>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script>
+    // Panel simple, sin login real todavía (Módulo 13). El token se
+    // pide una vez por sesión de pestaña con prompt() y se guarda
+    // en memoria (una variable JS), no en el HTML ni en localStorage.
+    let adminToken = null;
+
+    function pedirToken() {
+      if (!adminToken) {
+        adminToken = prompt("Token de administrador:") || "";
+      }
+      return adminToken;
+    }
+
+    function crearTarjetaModeracion(job) {
+      const card = document.createElement("article");
+      card.className = "job-card";
+      card.innerHTML = `
+        <h3>${job.title}</h3>
+        <p class="empresa">${job.company}</p>
+        <p class="ubicacion">${job.city}, ${job.province}</p>
+        <p class="descripcion">${job.description}</p>
+        <div class="card-footer">
+          <span class="source-badge" style="--badge-color:#8A9BAE">Estado: ${job.status}</span>
+        </div>
+        <div class="card-footer" style="margin-top:0.5rem;">
+          <button type="button" class="btn btn-primary" data-accion="approved">Aprobar</button>
+          <button type="button" class="btn btn-secondary" data-accion="rejected">Rechazar</button>
+        </div>
+      `;
+
+      card.querySelectorAll("button[data-accion]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const token = pedirToken();
+          try {
+            await apiModerateJob(token, job.id, btn.dataset.accion);
+            cargarLista();
+          } catch (err) {
+            alert(`No se pudo actualizar: ${err.message}`);
+          }
+        });
+      });
+
+      return card;
+    }
+
+    async function cargarLista() {
+      const status = document.getElementById("statusFilter").value;
+      const modStatus = document.getElementById("modStatus");
+      const modList = document.getElementById("modList");
+      const token = pedirToken();
+
+      modStatus.textContent = "Cargando…";
+      try {
+        const jobs = await apiGetAdminJobs(token, status);
+        modList.innerHTML = "";
+        jobs.forEach(job => modList.appendChild(crearTarjetaModeracion(job)));
+        modStatus.textContent = jobs.length ? `${jobs.length} oferta(s).` : "No hay ofertas en este estado.";
+      } catch (err) {
+        modStatus.textContent = `Error: ${err.message}`;
+        if (err.message === "No autorizado") adminToken = null; // para que vuelva a preguntar
+      }
+    }
+
+    document.getElementById("loadBtn").addEventListener("click", cargarLista);
+    document.addEventListener("DOMContentLoaded", cargarLista);
+  </script>
+</body>
+</html>
