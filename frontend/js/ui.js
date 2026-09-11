@@ -1,8 +1,8 @@
 /* ===========================================================
    UI — renderizado de tarjetas, secciones dinámicas,
    navbar con scroll, animaciones de aparición y menú mobile.
-   Ya no depende de data.js: los datos llegan de la API
-   (api.js). El dropdown personalizado vive en customSelect.js.
+   Depende de MOCK_JOBS y CATEGORIES definidos en data.js.
+   El dropdown personalizado vive aparte, en customSelect.js.
    =========================================================== */
 
 /**
@@ -69,19 +69,21 @@ function renderJobList(containerId, jobs) {
 }
 
 /** Renderiza los chips de "Explorar por categoría" */
-function renderCategoryGrid(categories) {
+function renderCategoryGrid() {
   const container = document.getElementById("categoryGrid");
   if (!container) return;
 
-  container.innerHTML = categories.map(cat => `
+  container.innerHTML = CATEGORIES.map(cat => `
     <button type="button" class="chip-card">${cat}</button>
   `).join("");
 }
 
-/** Renderiza los chips de "Explorar por ubicación" */
-function renderLocationGrid(provinces) {
+/** Renderiza los chips de "Explorar por ubicación" (provincias únicas de los datos mock) */
+function renderLocationGrid() {
   const container = document.getElementById("locationGrid");
   if (!container) return;
+
+  const provinces = [...new Set(MOCK_JOBS.map(job => job.province))];
 
   container.innerHTML = provinces.map(prov => `
     <button type="button" class="chip-card">${prov}</button>
@@ -144,38 +146,20 @@ function initRevealOnScroll() {
 }
 
 /* ===================== INICIALIZACIÓN ===================== */
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
   // Estas funciones no hacen nada si el contenedor no existe en
   // la página actual (por ejemplo, en publicar.html no hay #jobList).
-  try {
-    const jobs = await apiGetJobs();
-    renderJobList("featuredList", jobs.filter(job => job.featured));
-    renderJobList("jobList", jobs);
-  } catch (err) {
-    console.error("No se pudieron cargar los empleos:", err);
-    const status = document.getElementById("resultsStatus");
-    if (status) status.textContent = "No se pudo conectar con el servidor. ¿Está corriendo el backend (python3 app.py)?";
-  }
-
-  try {
-    renderCategoryGrid(await apiGetCategories());
-  } catch (err) {
-    console.error("No se pudieron cargar las categorías:", err);
-  }
-
-  try {
-    renderLocationGrid(await apiGetProvinces());
-  } catch (err) {
-    console.error("No se pudieron cargar las provincias:", err);
-  }
+  const featured = MOCK_JOBS.filter(job => job.featured);
+  renderJobList("featuredList", featured);
+  renderJobList("jobList", MOCK_JOBS);
+  renderCategoryGrid();
+  renderLocationGrid();
 
   initScrollNavbar();
   initMobileMenu();
   initRevealOnScroll();
 
-  // Es seguro llamarlo en cualquier momento: enhanceSelect()
-  // deja el dropdown "vacío" hasta que filters.js llame a
-  // refreshCustomSelect() con los datos reales (puede pasar
-  // antes o después, no importa el orden).
+  // Se inicializa último: para cuando esto corre, filters.js ya
+  // pobló provincia/ciudad/categoría/fuente con datos reales.
   initCustomSelects();
 });
