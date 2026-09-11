@@ -3,18 +3,6 @@
    formularios, footer
    =========================================================== */
 
-/* -----------------------------------------------------------
-   Clase base "glass": la reutilizamos en navbar, cards y forms
-   en vez de repetir backdrop-filter en cada componente.
-
-   El "truco" del vidrio real son 3 capas trabajando juntas:
-   1. backdrop-filter: desenfoca y satura lo que está detrás.
-   2. box-shadow inset: simula el canto del vidrio captando luz
-      (línea clara arriba, más tenue abajo).
-   3. box-shadow normal: la sombra que el panel proyecta, con
-      un tinte de color en vez de negro puro (más "vidrio",
-      menos "cartón").
-   ----------------------------------------------------------- */
 .glass {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
@@ -122,7 +110,7 @@
   font-size: 1.1rem;
 }
 
-/* ===================== BUSCADOR ===================== */
+/* BUSCADOR*/
 .search-section {
   position: relative;
   padding: var(--space-lg);
@@ -183,7 +171,7 @@
   color: var(--text-muted);
 }
 
-/* ===================== INPUTS / SELECT (compartido) ===================== */
+/*INPUTS / SELECT (compartido)*/
 input[type="text"],
 input[type="email"],
 input[type="tel"],
