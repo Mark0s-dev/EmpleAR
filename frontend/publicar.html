@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Publicar empleo — EmpleAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <!-- ===================== HEADER / NAVBAR ===================== -->
+  <header class="site-header">
+    <nav class="navbar" aria-label="Navegación principal">
+      <a href="index.html" class="logo">EmpleAR</a>
+
+      <button class="nav-toggle" id="navToggle" aria-expanded="false" aria-controls="navMenu" aria-label="Abrir menú">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html#buscar">Buscar empleo</a></li>
+        <li><a href="publicar.html">Publicar empleo</a></li>
+        <li><a href="contacto.html">Publicidad / Contacto</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <p class="back-link"><a href="index.html">← Volver a EmpleAR</a></p>
+
+    <!-- ===================== PUBLICAR EMPLEO ===================== -->
+    <section class="publish-section" aria-labelledby="publicar-titulo">
+      <h2 id="publicar-titulo">Publicar empleo</h2>
+      <p>Completá el formulario para publicar una oferta laboral. Todas las publicaciones pasan por moderación antes de mostrarse.</p>
+
+      <form class="publish-form" id="publishForm">
+        <div class="form-group">
+          <label for="empresa">Empresa</label>
+          <input type="text" id="empresa" name="empresa" required>
+        </div>
+
+        <div class="form-group">
+          <label for="contactoNombre">Nombre de contacto</label>
+          <input type="text" id="contactoNombre" name="contactoNombre" required>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required>
+        </div>
+
+        <div class="form-group">
+          <label for="telefono">Teléfono (opcional)</label>
+          <input type="tel" id="telefono" name="telefono">
+        </div>
+
+        <div class="form-group">
+          <label for="puesto">Puesto</label>
+          <input type="text" id="puesto" name="puesto" required>
+        </div>
+
+        <div class="form-group form-group-full">
+          <label for="descripcion">Descripción</label>
+          <textarea id="descripcion" name="descripcion" rows="4" required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="publishProvincia">Provincia</label>
+          <select id="publishProvincia" name="provincia" required>
+            <option value="">Seleccionar...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="publishCiudad">Ciudad</label>
+          <select id="publishCiudad" name="ciudad" required>
+            <option value="">Seleccionar...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="publishCategoria">Categoría</label>
+          <select id="publishCategoria" name="categoria" required>
+            <option value="">Seleccionar...</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="publishModalidad">Modalidad</label>
+          <select id="publishModalidad" name="modalidad" required>
+            <option value="">Seleccionar...</option>
+            <option value="presencial">Presencial</option>
+            <option value="remoto">Remoto</option>
+            <option value="hibrido">Híbrido</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="publishContrato">Tipo de contrato</label>
+          <select id="publishContrato" name="contrato" required>
+            <option value="">Seleccionar...</option>
+            <option value="tiempo-completo">Tiempo completo</option>
+            <option value="medio-tiempo">Medio tiempo</option>
+            <option value="temporal">Temporal</option>
+            <option value="freelance">Freelance</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="publishHorario">Horario</label>
+          <select id="publishHorario" name="horario" required>
+            <option value="">Seleccionar...</option>
+            <option value="manana">Mañana</option>
+            <option value="tarde">Tarde</option>
+            <option value="noche">Noche</option>
+            <option value="rotativo">Rotativo</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="vencimiento">Fecha de vencimiento</label>
+          <input type="date" id="vencimiento" name="vencimiento" required>
+        </div>
+
+        <div class="form-group form-group-full">
+          <button type="submit" class="btn btn-primary">Publicar oferta</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <p>&copy; 2026 EmpleAR — Contacto: <a href="mailto:marcos20as04@gmail.com">marcos20as04@gmail.com</a></p>
+  </footer>
+
+  <script src="js/customSelect.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/filters.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>

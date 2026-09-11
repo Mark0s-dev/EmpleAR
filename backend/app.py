@@ -3,7 +3,8 @@ from datetime import date
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from data import CATEGORIES, LOCATIONS, MOCK_JOBS, SOURCES
+from data import CATEGORIES, LOCATIONS, SOURCES
+from models import Job, db
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # así "í", "ñ", etc. se ven legibles en las respuestas
@@ -16,6 +17,11 @@ app.json.ensure_ascii = False  # así "í", "ñ", etc. se ven legibles en las re
 # respuesta un header que le dice al navegador "está permitido".
 CORS(app)
 
+# sqlite:///emplear.db = usar SQLite, guardando en el archivo
+# emplear.db (se crea solo, al lado de este archivo).
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///emplear.db"
+db.init_app(app)
+
 
 @app.route("/")
 def home():
@@ -26,18 +32,27 @@ def _dias_desde(fecha_iso, referencia):
     return (referencia - date.fromisoformat(fecha_iso)).days
 
 
-def _fecha_mas_reciente():
-    """La fecha más nueva entre los mock jobs: la usamos como 'hoy'
-    del demo, igual que hacíamos en filters.js con getMockToday()."""
-    return max(date.fromisoformat(j["publishedAt"]) for j in MOCK_JOBS)
+def _fecha_mas_reciente(jobs):
+    """La fecha más nueva entre los jobs de la base: la usamos como
+    'hoy' del demo, igual que hacíamos en filters.js con getMockToday()."""
+    return max(date.fromisoformat(j["publishedAt"]) for j in jobs)
 
 
 def filtrar_jobs(criterios):
+    # Job.query.all() trae TODAS las filas de la tabla "jobs" desde
+    # SQLite. El filtrado, por ahora, lo seguimos haciendo acá en
+    # Python (igual que con MOCK_JOBS) para no mezclar dos temas
+    # nuevos a la vez — filtrar con SQL directamente (más eficiente
+    # con muchos datos) lo vemos en el Módulo 7.
+    jobs = [job.to_dict() for job in Job.query.all()]
+    if not jobs:
+        return []
+
     keyword = criterios.get("keyword", "").strip().lower()
-    referencia = _fecha_mas_reciente()
+    referencia = _fecha_mas_reciente(jobs)
     resultado = []
 
-    for job in MOCK_JOBS:
+    for job in jobs:
         if keyword and keyword not in job["title"].lower() \
                 and keyword not in job["company"].lower() \
                 and keyword not in job["description"].lower():
@@ -88,12 +103,12 @@ def get_jobs():
     return jsonify(filtrar_jobs(criterios))
 
 
-@app.route("/api/jobs/<job_id>")
+@app.route("/api/jobs/<int:job_id>")
 def get_job(job_id):
-    job = next((j for j in MOCK_JOBS if j["id"] == job_id), None)
+    job = db.session.get(Job, job_id)
     if job is None:
         return jsonify({"error": "Empleo no encontrado"}), 404
-    return jsonify(job)
+    return jsonify(job.to_dict())
 
 
 @app.route("/api/jobs", methods=["POST"])
@@ -105,14 +120,34 @@ def create_job():
     if faltantes:
         return jsonify({"error": "Faltan campos obligatorios", "campos": faltantes}), 400
 
-    # Todavía no hay base de datos (llega en el Módulo 6), así que
-    # esto NO se guarda de verdad: solo confirmamos que llegó bien
-    # y devolvemos cómo quedaría, con estado "pending" (moderación).
-    nuevo_job = {**datos, "id": "job-preview", "status": "pending"}
-    return jsonify(nuevo_job), 201
+    # Ahora sí se guarda de verdad en SQLite.
+    # TODO (Módulo 9): agregar estado de moderación (pending/approved/...)
+    # antes de que estas ofertas aparezcan mezcladas con las reales.
+    nuevo_job = Job(
+        title=datos["title"],
+        company=datos["company"],
+        province=datos["province"],
+        city=datos["city"],
+        category=datos["category"],
+        modality=datos["modality"],
+        contract=datos["contract"],
+        schedule=datos.get("horario", "manana"),
+        description=datos.get("description", ""),
+        source="EmpleAR",
+        source_url="#",
+        published_at=date.today().isoformat(),
+        featured=False,
+    )
+    db.session.add(nuevo_job)
+    db.session.commit()
+
+    return jsonify(nuevo_job.to_dict()), 201
 
 
 # ===================== UBICACIONES Y CATEGORÍAS =====================
+# Provincia/Ciudad/Categoría/Fuente todavía son listas fijas (data.py),
+# no tablas propias. Eso llega más adelante si hace falta que se
+# administren dinámicamente — por ahora no cambian seguido.
 
 @app.route("/api/provinces")
 def get_provinces():
@@ -124,7 +159,6 @@ def get_cities():
     provincia = request.args.get("provincia")
     if provincia:
         return jsonify(LOCATIONS.get(provincia, []))
-    # Sin provincia: todas las ciudades, sin repetir por provincia
     todas = [ciudad for ciudades in LOCATIONS.values() for ciudad in ciudades]
     return jsonify(todas)
 
@@ -150,7 +184,7 @@ def create_contact():
     if faltantes:
         return jsonify({"error": "Faltan campos obligatorios", "campos": faltantes}), 400
 
-    # Todavía no se envía email de verdad (llega en el Módulo 15)
+    # Todavía no se envía email de verdad ni se guarda (llega en el Módulo 15)
     return jsonify({"mensaje": "Consulta recibida. Te vamos a responder pronto."}), 201
 
 
