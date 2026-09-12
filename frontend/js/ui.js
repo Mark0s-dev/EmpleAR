@@ -172,6 +172,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initScrollNavbar();
   initMobileMenu();
   initRevealOnScroll();
+  initAuthNav();
 
   // Es seguro llamarlo en cualquier momento: enhanceSelect()
   // deja el dropdown "vacío" hasta que filters.js llame a

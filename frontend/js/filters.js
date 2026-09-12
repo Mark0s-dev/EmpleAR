@@ -130,6 +130,57 @@ function initFormSubmit(formId, submitFn, successMessage) {
   });
 }
 
+/**
+ * Guarda la búsqueda actual del formulario (requiere sesión).
+ * Solo permite guardar si hay al menos un filtro elegido — no
+ * tiene sentido guardar "todo, sin filtrar nada".
+ */
+async function guardarBusquedaActual(form) {
+  const session = getSession();
+  if (!session) {
+    if (confirm("Necesitás una cuenta para guardar búsquedas. ¿Ir a iniciar sesión?")) {
+      window.location.href = "cuenta.html";
+    }
+    return;
+  }
+
+  const criterios = readSearchCriteria(form);
+  if (!Object.values(criterios).some(Boolean)) {
+    alert("Elegí al menos un filtro antes de guardar la búsqueda.");
+    return;
+  }
+
+  const label = prompt("¿Cómo querés llamar a esta búsqueda?", "");
+  if (!label) return;
+
+  try {
+    await apiCreateSavedSearch(session.token, label, criterios);
+    alert("✓ Búsqueda guardada. La vas a encontrar en tu cuenta.");
+  } catch (err) {
+    alert(`No se pudo guardar: ${err.message}`);
+  }
+}
+
+/**
+ * Si la URL trae criterios (ej: index.html?provincia=Misiones,
+ * como arma cuenta.html al reabrir una búsqueda guardada),
+ * precarga el formulario con esos valores y busca automáticamente.
+ */
+function aplicarCriteriosDesdeURL(form) {
+  const params = new URLSearchParams(window.location.search);
+  if ([...params.keys()].length === 0) return;
+
+  params.forEach((valor, clave) => {
+    const campo = form.elements.namedItem(clave);
+    if (campo) {
+      campo.value = valor;
+      if (typeof refreshCustomSelect === "function") refreshCustomSelect(campo);
+    }
+  });
+
+  runSearch(form);
+}
+
 /* ===================== INICIALIZACIÓN ===================== */
 document.addEventListener("DOMContentLoaded", async () => {
   await setupLocationCascade(
@@ -168,6 +219,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     searchForm.querySelectorAll("select").forEach(select => {
       select.addEventListener("change", () => runSearch(searchForm));
     });
+
+    aplicarCriteriosDesdeURL(searchForm);
+  }
+
+  const saveBtn = document.getElementById("saveSearchBtn");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", () => guardarBusquedaActual(searchForm));
   }
 
   initFormSubmit(

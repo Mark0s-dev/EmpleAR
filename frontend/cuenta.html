@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi cuenta — EmpleAR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <nav class="navbar" aria-label="Navegación principal">
+      <a href="index.html" class="logo">EmpleAR</a>
+      <ul class="nav-menu" id="navMenu">
+        <li><a href="index.html#buscar">Buscar empleo</a></li>
+        <li><a href="publicar.html">Publicar empleo</a></li>
+        <li><a href="contacto.html">Publicidad / Contacto</a></li>
+        <li id="navAuth"><a href="cuenta.html">Ingresar</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <p class="back-link"><a href="index.html">← Volver a EmpleAR</a></p>
+
+    <!-- Se muestra si NO hay sesión -->
+    <section class="publish-section" id="authSection" aria-labelledby="auth-titulo">
+      <h2 id="auth-titulo">Ingresar / Crear cuenta</h2>
+
+      <form class="publish-form" id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email</label>
+          <input type="email" id="loginEmail" name="email" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Contraseña</label>
+          <input type="password" id="loginPassword" name="password" required minlength="6">
+        </div>
+        <div class="form-group form-group-full" style="display:flex; gap:1rem;">
+          <button type="submit" class="btn btn-primary">Ingresar</button>
+          <button type="button" class="btn btn-secondary" id="registerBtn">Crear cuenta con estos datos</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Se muestra si HAY sesión -->
+    <section class="search-section" id="accountSection" style="display:none;" aria-labelledby="cuenta-titulo">
+      <h2 id="cuenta-titulo">Mi cuenta</h2>
+      <p id="accountEmail"></p>
+      <button type="button" class="btn btn-secondary" id="logoutBtn">Cerrar sesión</button>
+    </section>
+
+    <section class="results-section" id="savedSection" style="display:none;" aria-labelledby="guardadas-titulo">
+      <h2 id="guardadas-titulo">Mis búsquedas guardadas</h2>
+      <div id="savedStatus" class="results-status" role="status" aria-live="polite"></div>
+      <div id="savedList" class="job-list"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>&copy; 2026 EmpleAR — Contacto: <a href="mailto:marcos20as04@gmail.com">marcos20as04@gmail.com</a></p>
+  </footer>
+
+  <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
+  <script>
+    function criteriosATexto(criterios) {
+      return Object.entries(criterios)
+        .filter(([, valor]) => valor)
+        .map(([clave, valor]) => `${clave}: ${valor}`)
+        .join(" · ") || "(sin filtros)";
+    }
+
+    function criteriosAQueryString(criterios) {
+      const params = new URLSearchParams();
+      Object.entries(criterios).forEach(([clave, valor]) => {
+        if (valor) params.set(clave, valor);
+      });
+      return params.toString();
+    }
+
+    function crearFilaBusqueda(busqueda, session) {
+      const card = document.createElement("article");
+      card.className = "job-card";
+      card.innerHTML = `
+        <h3>${busqueda.label}</h3>
+        <p class="descripcion">${criteriosATexto(busqueda.criteria)}</p>
+        <div class="card-footer">
+          <a class="btn btn-primary" href="index.html?${criteriosAQueryString(busqueda.criteria)}">Usar esta búsqueda</a>
+          <button type="button" class="btn btn-secondary" data-id="${busqueda.id}">Eliminar</button>
+        </div>
+      `;
+      card.querySelector("button[data-id]").addEventListener("click", async () => {
+        try {
+          await apiDeleteSavedSearch(session.token, busqueda.id);
+          cargarBusquedas();
+        } catch (err) {
+          alert(`No se pudo eliminar: ${err.message}`);
+        }
+      });
+      return card;
+    }
+
+    async function cargarBusquedas() {
+      const session = getSession();
+      if (!session) return;
+
+      const status = document.getElementById("savedStatus");
+      const list = document.getElementById("savedList");
+      status.textContent = "Cargando…";
+
+      try {
+        const busquedas = await apiGetSavedSearches(session.token);
+        list.innerHTML = "";
+        busquedas.forEach(b => list.appendChild(crearFilaBusqueda(b, session)));
+        status.textContent = busquedas.length ? "" : "Todavía no guardaste ninguna búsqueda.";
+      } catch (err) {
+        status.textContent = `Error: ${err.message}`;
+      }
+    }
+
+    function mostrarSegunSesion() {
+      const session = getSession();
+      document.getElementById("authSection").style.display = session ? "none" : "block";
+      document.getElementById("accountSection").style.display = session ? "block" : "none";
+      document.getElementById("savedSection").style.display = session ? "block" : "none";
+
+      if (session) {
+        document.getElementById("accountEmail").textContent = `Conectado como ${session.user.email}`;
+        cargarBusquedas();
+      }
+      initAuthNav();
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+      try {
+        const { token, user } = await apiLogin(email, password);
+        setSession({ token, user });
+        mostrarSegunSesion();
+      } catch (err) {
+        alert(`No se pudo ingresar: ${err.message}`);
+      }
+    });
+
+    document.getElementById("registerBtn").addEventListener("click", async () => {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+      if (!email || password.length < 6) {
+        alert("Completá email y una contraseña de al menos 6 caracteres.");
+        return;
+      }
+      try {
+        await apiRegister(email, password);
+        const { token, user } = await apiLogin(email, password);
+        setSession({ token, user });
+        mostrarSegunSesion();
+      } catch (err) {
+        alert(`No se pudo crear la cuenta: ${err.message}`);
+      }
+    });
+
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      const session = getSession();
+      try {
+        if (session) await apiLogout(session.token);
+      } catch {
+        // si falla el logout en el servidor, igual limpiamos localmente
+      }
+      clearSession();
+      mostrarSegunSesion();
+    });
+
+    document.addEventListener("DOMContentLoaded", mostrarSegunSesion);
+  </script>
+</body>
+</html>

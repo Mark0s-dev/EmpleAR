@@ -28,6 +28,7 @@
         <li><a href="index.html#buscar">Buscar empleo</a></li>
         <li><a href="publicar.html">Publicar empleo</a></li>
         <li><a href="contacto.html">Publicidad / Contacto</a></li>
+        <li id="navAuth"><a href="cuenta.html">Ingresar</a></li>
       </ul>
     </nav>
   </header>
@@ -55,6 +56,7 @@
           <label for="keyword" class="visually-hidden">Palabras clave</label>
           <input type="text" id="keyword" name="keyword" placeholder="Puesto, empresa o palabra clave...">
           <button type="submit" class="btn btn-primary">Buscar</button>
+          <button type="button" class="btn btn-secondary" id="saveSearchBtn">Guardar búsqueda</button>
         </div>
 
         <div class="filters" id="filters">
@@ -176,6 +178,7 @@
 
   <script src="js/customSelect.js"></script>
   <script src="js/api.js"></script>
+  <script src="js/auth.js"></script>
   <script src="js/filters.js"></script>
   <script src="js/ui.js"></script>
 </body>

@@ -25,6 +25,13 @@ LOCATIONS = {
     "Santa Fe": ["Rosario", "Santa Fe"],
 }
 
+# Únicos valores permitidos para estos campos — usado tanto para
+# validar formularios (app.py) como para normalizar datos de
+# scrapers (normalize.py). Un solo lugar, para no repetir listas.
+MODALIDADES_VALIDAS = {"presencial", "remoto", "hibrido"}
+CONTRATOS_VALIDOS = {"tiempo-completo", "medio-tiempo", "temporal", "freelance"}
+HORARIOS_VALIDOS = {"manana", "tarde", "noche", "rotativo"}
+
 MOCK_JOBS = [
     {
         "id": "job-001", "title": "Recepcionista", "company": "Hotel Cataratas",

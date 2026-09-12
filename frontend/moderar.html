@@ -29,7 +29,7 @@
 
     <section class="search-section" aria-labelledby="mod-titulo">
       <h2 id="mod-titulo">Moderación de ofertas</h2>
-      <p>Panel interno — no está pensado para usuarios finales. Requiere el token de administrador (por ahora, el mismo que configuraste en <code>EMPLEAR_ADMIN_TOKEN</code>, o <code>dev-admin-1234</code> en desarrollo).</p>
+      <p>Panel interno — no está pensado para usuarios finales. Necesitás iniciar sesión con una cuenta administradora (la de arranque es <code>admin@emplear.com</code> / <code>admin1234</code>, creada por <code>seed.py</code>).</p>
 
       <div class="search-bar">
         <label for="statusFilter" class="visually-hidden">Estado</label>
@@ -55,16 +55,44 @@
 
   <script src="js/api.js"></script>
   <script>
-    // Panel simple, sin login real todavía (Módulo 13). El token se
-    // pide una vez por sesión de pestaña con prompt() y se guarda
-    // en memoria (una variable JS), no en el HTML ni en localStorage.
-    let adminToken = null;
+    // Sesión guardada en localStorage para no tener que loguearse
+    // en cada recarga (esto SÍ es un sitio real fuera de la
+    // conversación, no un artifact — localStorage funciona normal).
+    let sesion = JSON.parse(localStorage.getItem("emplear_admin_session") || "null");
 
-    function pedirToken() {
-      if (!adminToken) {
-        adminToken = prompt("Token de administrador:") || "";
+    function guardarSesion(data) {
+      sesion = data;
+      localStorage.setItem("emplear_admin_session", JSON.stringify(data));
+    }
+
+    function cerrarSesion() {
+      sesion = null;
+      localStorage.removeItem("emplear_admin_session");
+    }
+
+    async function pedirLogin() {
+      const email = prompt("Email de administrador:", "admin@emplear.com");
+      if (!email) return null;
+      const password = prompt("Contraseña:");
+      if (!password) return null;
+
+      try {
+        const { token, user } = await apiLogin(email, password);
+        if (!user.isAdmin) {
+          alert("Esa cuenta existe pero no es administradora.");
+          return null;
+        }
+        guardarSesion({ token, user });
+        return sesion;
+      } catch (err) {
+        alert(`No se pudo iniciar sesión: ${err.message}`);
+        return null;
       }
-      return adminToken;
+    }
+
+    async function asegurarSesionAdmin() {
+      if (sesion) return sesion;
+      return pedirLogin();
     }
 
     function crearTarjetaModeracion(job) {
@@ -86,11 +114,13 @@
 
       card.querySelectorAll("button[data-accion]").forEach(btn => {
         btn.addEventListener("click", async () => {
-          const token = pedirToken();
+          const activa = await asegurarSesionAdmin();
+          if (!activa) return;
           try {
-            await apiModerateJob(token, job.id, btn.dataset.accion);
+            await apiModerateJob(activa.token, job.id, btn.dataset.accion);
             cargarLista();
           } catch (err) {
+            if (err.message === "No autenticado") cerrarSesion();
             alert(`No se pudo actualizar: ${err.message}`);
           }
         });
@@ -103,17 +133,22 @@
       const status = document.getElementById("statusFilter").value;
       const modStatus = document.getElementById("modStatus");
       const modList = document.getElementById("modList");
-      const token = pedirToken();
+
+      const activa = await asegurarSesionAdmin();
+      if (!activa) {
+        modStatus.textContent = "Necesitás iniciar sesión como administrador para ver esto.";
+        return;
+      }
 
       modStatus.textContent = "Cargando…";
       try {
-        const jobs = await apiGetAdminJobs(token, status);
+        const jobs = await apiGetAdminJobs(activa.token, status);
         modList.innerHTML = "";
         jobs.forEach(job => modList.appendChild(crearTarjetaModeracion(job)));
         modStatus.textContent = jobs.length ? `${jobs.length} oferta(s).` : "No hay ofertas en este estado.";
       } catch (err) {
         modStatus.textContent = `Error: ${err.message}`;
-        if (err.message === "No autorizado") adminToken = null; // para que vuelva a preguntar
+        if (err.message === "No autenticado" || err.message === "No autorizado") cerrarSesion();
       }
     }
 

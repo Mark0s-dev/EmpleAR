@@ -75,22 +75,59 @@ async function apiCreateContact(payload) {
   return apiFetch("/api/contact", { method: "POST", body: JSON.stringify(payload) });
 }
 
+/* ===================== AUTENTICACIÓN ===================== */
+
+async function apiRegister(email, password) {
+  return apiFetch("/api/auth/register", { method: "POST", body: JSON.stringify({ email, password }) });
+}
+
+async function apiLogin(email, password) {
+  return apiFetch("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+}
+
+async function apiLogout(token) {
+  return apiFetch("/api/auth/logout", { method: "POST", headers: { Authorization: `Bearer ${token}` } });
+}
+
+async function apiMe(token) {
+  return apiFetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } });
+}
+
 /* ===================== ADMIN / MODERACIÓN ===================== */
-/* Estas 2 funciones mandan el header X-Admin-Token. Todavía no hay
-   login real (eso es el Módulo 13) — el token se pide con un simple
-   prompt() en moderar.html y se guarda en memoria mientras dura la
-   pestaña, nada más. */
+/* Ahora sí requieren haber iniciado sesión como admin de verdad
+   (Módulo 13) — antes usaban un token fijo compartido. */
 
 async function apiGetAdminJobs(token, status = "pending") {
   return apiFetch(`/api/admin/jobs${buildQuery({ status })}`, {
-    headers: { "X-Admin-Token": token },
+    headers: { Authorization: `Bearer ${token}` },
   });
 }
 
 async function apiModerateJob(token, jobId, status) {
   return apiFetch(`/api/admin/jobs/${jobId}`, {
     method: "PATCH",
-    headers: { "X-Admin-Token": token },
+    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({ status }),
+  });
+}
+
+/* ===================== BÚSQUEDAS GUARDADAS ===================== */
+
+async function apiGetSavedSearches(token) {
+  return apiFetch("/api/saved-searches", { headers: { Authorization: `Bearer ${token}` } });
+}
+
+async function apiCreateSavedSearch(token, label, criteria) {
+  return apiFetch("/api/saved-searches", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ label, criteria }),
+  });
+}
+
+async function apiDeleteSavedSearch(token, id) {
+  return apiFetch(`/api/saved-searches/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` },
   });
 }

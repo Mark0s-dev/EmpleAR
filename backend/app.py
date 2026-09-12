@@ -1,13 +1,15 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from functools import wraps
-import os
+import json
+import secrets
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from sqlalchemy import func, or_
+from werkzeug.security import check_password_hash, generate_password_hash
 
-from data import CATEGORIES, LOCATIONS, SOURCES
-from models import Job, db
+from data import CATEGORIES, HORARIOS_VALIDOS, CONTRATOS_VALIDOS, LOCATIONS, MODALIDADES_VALIDAS, SOURCES
+from models import Job, SavedSearch, Session, User, db
 
 app = Flask(__name__)
 app.json.ensure_ascii = False  # así "í", "ñ", etc. se ven legibles en las respuestas
@@ -25,22 +27,44 @@ CORS(app)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///emplear.db"
 db.init_app(app)
 
-# Token de administrador MUY simple, solo para no dejar los endpoints
-# de moderación abiertos a cualquiera mientras no existe un sistema
-# de usuarios real (eso es el Módulo 13, con login y roles de verdad).
-# Se lee de una variable de entorno; si no está configurada, usa un
-# valor de desarrollo — NUNCA usar ese valor por defecto en producción.
-ADMIN_TOKEN = os.environ.get("EMPLEAR_ADMIN_TOKEN", "dev-admin-1234")
+
+def usuario_actual():
+    """Lee el header 'Authorization: Bearer <token>', busca la sesión
+    en la base y devuelve el User dueño, o None si no hay token
+    válido. No es JWT (no vamos a firmar nada): el token es solo un
+    identificador al azar guardado en la tabla sessions — más simple
+    de entender, y suficiente para este proyecto."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth.removeprefix("Bearer ")
+    sesion = db.session.get(Session, token)
+    return sesion.user if sesion else None
+
+
+def require_login(vista):
+    """Corta la ejecución con 401 si no hay una sesión válida.
+    Deja al usuario disponible en request.current_user."""
+    @wraps(vista)
+    def envoltorio(*args, **kwargs):
+        usuario = usuario_actual()
+        if usuario is None:
+            return jsonify({"error": "No autenticado"}), 401
+        request.current_user = usuario
+        return vista(*args, **kwargs)
+    return envoltorio
 
 
 def require_admin(vista):
-    """Decorador: envuelve una ruta y exige el header
-    'X-Admin-Token' con el valor correcto antes de ejecutarla."""
+    """Como require_login, pero además exige is_admin=True."""
     @wraps(vista)
     def envoltorio(*args, **kwargs):
-        token = request.headers.get("X-Admin-Token")
-        if token != ADMIN_TOKEN:
-            return jsonify({"error": "No autorizado"}), 401
+        usuario = usuario_actual()
+        if usuario is None:
+            return jsonify({"error": "No autenticado"}), 401
+        if not usuario.is_admin:
+            return jsonify({"error": "No autorizado"}), 403
+        request.current_user = usuario
         return vista(*args, **kwargs)
     return envoltorio
 
@@ -48,6 +72,77 @@ def require_admin(vista):
 @app.route("/")
 def home():
     return "EmpleAR backend funcionando 🚀"
+
+
+# ===================== AUTENTICACIÓN =====================
+
+@app.route("/api/auth/register", methods=["POST"])
+def register():
+    datos = request.get_json(silent=True) or {}
+    email = (datos.get("email") or "").strip().lower()
+    password = datos.get("password") or ""
+
+    if "@" not in email or "." not in email:
+        return jsonify({"error": "Email inválido"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Ya existe una cuenta con ese email"}), 400
+
+    usuario = User(
+        email=email,
+        # generate_password_hash NUNCA guarda la contraseña en texto
+        # plano — guarda un hash: si alguien roba la base de datos,
+        # no puede leer las contraseñas originales.
+        password_hash=generate_password_hash(password),
+        is_admin=False,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    db.session.add(usuario)
+    db.session.commit()
+
+    return jsonify(usuario.to_dict()), 201
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def login():
+    datos = request.get_json(silent=True) or {}
+    email = (datos.get("email") or "").strip().lower()
+    password = datos.get("password") or ""
+
+    usuario = User.query.filter_by(email=email).first()
+    # check_password_hash compara el hash, nunca la contraseña en
+    # texto plano. El mensaje de error es el MISMO si el email no
+    # existe o si la contraseña está mal — así no le confirmamos a
+    # un atacante "che, este email sí existe" probando al azar.
+    if usuario is None or not check_password_hash(usuario.password_hash, password):
+        return jsonify({"error": "Email o contraseña incorrectos"}), 401
+
+    token = secrets.token_hex(32)
+    sesion = Session(token=token, user_id=usuario.id, created_at=datetime.now(timezone.utc).isoformat())
+    db.session.add(sesion)
+    db.session.commit()
+
+    return jsonify({"token": token, "user": usuario.to_dict()})
+
+
+@app.route("/api/auth/logout", methods=["POST"])
+@require_login
+def logout():
+    auth = request.headers.get("Authorization", "")
+    token = auth.removeprefix("Bearer ")
+    sesion = db.session.get(Session, token)
+    if sesion:
+        db.session.delete(sesion)
+        db.session.commit()
+    return jsonify({"mensaje": "Sesión cerrada"})
+
+
+@app.route("/api/auth/me")
+@require_login
+def me():
+    return jsonify(request.current_user.to_dict())
+
 
 
 def _fecha_mas_reciente():
@@ -127,11 +222,6 @@ def get_job(job_id):
     if job is None:
         return jsonify({"error": "Empleo no encontrado"}), 404
     return jsonify(job.to_dict())
-
-
-MODALIDADES_VALIDAS = {"presencial", "remoto", "hibrido"}
-CONTRATOS_VALIDOS = {"tiempo-completo", "medio-tiempo", "temporal", "freelance"}
-HORARIOS_VALIDOS = {"manana", "tarde", "noche", "rotativo"}
 
 
 def validar_job(datos):
@@ -240,6 +330,53 @@ def create_contact():
 
     # Todavía no se envía email de verdad ni se guarda (llega en el Módulo 15)
     return jsonify({"mensaje": "Consulta recibida. Te vamos a responder pronto."}), 201
+
+
+# ===================== BÚSQUEDAS GUARDADAS =====================
+
+@app.route("/api/saved-searches", methods=["GET"])
+@require_login
+def list_saved_searches():
+    searches = SavedSearch.query.filter_by(user_id=request.current_user.id) \
+        .order_by(SavedSearch.created_at.desc()).all()
+    return jsonify([s.to_dict() for s in searches])
+
+
+@app.route("/api/saved-searches", methods=["POST"])
+@require_login
+def create_saved_search():
+    datos = request.get_json(silent=True) or {}
+    criterios = datos.get("criteria") or {}
+    label = (datos.get("label") or "").strip()
+
+    if not label:
+        return jsonify({"error": "La búsqueda necesita un nombre"}), 400
+    if not any(criterios.values()):
+        return jsonify({"error": "Elegí al menos un filtro antes de guardar la búsqueda"}), 400
+
+    nueva = SavedSearch(
+        user_id=request.current_user.id,
+        label=label,
+        criteria_json=json.dumps(criterios),
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    db.session.add(nueva)
+    db.session.commit()
+    return jsonify(nueva.to_dict()), 201
+
+
+@app.route("/api/saved-searches/<int:search_id>", methods=["DELETE"])
+@require_login
+def delete_saved_search(search_id):
+    busqueda = db.session.get(SavedSearch, search_id)
+    if busqueda is None or busqueda.user_id != request.current_user.id:
+        # 404 en vez de 403: no le confirmamos a otro usuario que
+        # ese id "existe pero no es tuyo" — simplemente no existe para él.
+        return jsonify({"error": "Búsqueda no encontrada"}), 404
+
+    db.session.delete(busqueda)
+    db.session.commit()
+    return jsonify({"mensaje": "Búsqueda eliminada"})
 
 
 # ===================== MODERACIÓN (admin) =====================
